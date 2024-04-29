@@ -19,6 +19,7 @@ set_context() {
     fi
 }
 
+mkdir -p $MODDIR/system/etc/security/cacerts
 rm $MODDIR/system/etc/security/cacerts/*
 cp -f /data/misc/user/*/cacerts-added/* ${MODDIR}/system/etc/security/cacerts/
 chown -R 0:0 ${MODDIR}/system/etc/security/cacerts
