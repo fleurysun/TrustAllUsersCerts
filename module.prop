@@ -1,0 +1,7 @@
+id=trustalluserscerts
+name=Trust All Users Certificates
+version=v0.0.1
+versionCode=1
+author=fleurysun
+description=This module adds all installed certificates of all users to the system trust store.
+minMagisk=2400
