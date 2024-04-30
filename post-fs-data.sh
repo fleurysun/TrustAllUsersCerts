@@ -19,38 +19,44 @@ set_context() {
     fi
 }
 
-mkdir -p $MODDIR/system/etc/security/cacerts
-rm $MODDIR/system/etc/security/cacerts/*
-cp -f /data/misc/user/*/cacerts-added/* ${MODDIR}/system/etc/security/cacerts/
-chown -R 0:0 ${MODDIR}/system/etc/security/cacerts
-set_context /system/etc/security/cacerts ${MODDIR}/system/etc/security/cacerts
+SYS_CACERTS_DIR=/system/etc/security/cacerts
+MOD_CACERTS_DIR="${MODDIR}/${SYS_CACERTS_DIR}"
+USER_CACERTS=/data/misc/user/*/cacerts-added/*
+USER_CACERTS_NUM="$(ls -1 $USER_CACERTS | wc -l)"
+
+if [ $USER_CACERTS_NUM -eq 0 ]; then
+    exit 0
+fi
+
+mkdir -p "$MOD_CACERTS_DIR"
+rm "$MOD_CACERTS_DIR"/*
+cp -f $USER_CACERTS "$MOD_CACERTS_DIR"
+chown -R 0:0 "$MOD_CACERTS_DIR"
+set_context "$SYS_CACERTS_DIR" "$MOD_CACERTS_DIR"
 
 # Android 14 support
 # Since Magisk ignore /apex for module file injections, use non-Magisk way
-if [ -d /apex/com.android.conscrypt/cacerts ]; then
+APEX_CACERTS_DIR=/apex/com.android.conscrypt/cacerts
+TMP_CACERTS_DIR=/data/local/tmp/tmp-ca-copy
+if [ -d "$APEX_CACERTS_DIR" ]; then
     # Clone directory into tmpfs
-    rm -f /data/local/tmp/tmp-ca-copy
-    mkdir -p /data/local/tmp/tmp-ca-copy
-    mount -t tmpfs tmpfs /data/local/tmp/tmp-ca-copy
-    cp -f /apex/com.android.conscrypt/cacerts/* /data/local/tmp/tmp-ca-copy/
+    rm -f "$TMP_CACERTS_DIR"
+    mkdir -p "$TMP_CACERTS_DIR"
+    mount -t tmpfs tmpfs "$TMP_CACERTS_DIR"
+    cp -f "$APEX_CACERTS_DIR"/* "$TMP_CACERTS_DIR"
 
     # Do the same as in Magisk module
-    cp -f /data/misc/user/*/cacerts-added/* /data/local/tmp/tmp-ca-copy
-    chown -R 0:0 /data/local/tmp/tmp-ca-copy
-    set_context /apex/com.android.conscrypt/cacerts /data/local/tmp/tmp-ca-copy
+    cp -f $USER_CACERTS "$TMP_CACERTS_DIR"
+    chown -R 0:0 "$TMP_CACERTS_DIR"
+    set_context "$APEX_CACERTS_DIR" "$TMP_CACERTS_DIR"
 
     # Mount directory inside APEX if it is valid, and remove temporary one.
-    CERTS_NUM="$(ls -1 /data/local/tmp/tmp-ca-copy | wc -l)"
-    if [ "$CERTS_NUM" -gt 10 ]; then
-        mount --bind /data/local/tmp/tmp-ca-copy /apex/com.android.conscrypt/cacerts
-        for pid in 1 $(pgrep zygote) $(pgrep zygote64); do
-            nsenter --mount=/proc/${pid}/ns/mnt -- \
-                /bin/mount --bind /data/local/tmp/tmp-ca-copy /apex/com.android.conscrypt/cacerts
-        done
-    else
-        echo "Cancelling replacing CA storage due to safety"
-    fi
+    mount --bind "$TMP_CACERTS_DIR" "$APEX_CACERTS_DIR"
+    for pid in 1 $(pgrep zygote) $(pgrep zygote64); do
+        nsenter --mount=/proc/${pid}/ns/mnt -- \
+            /bin/mount --bind "$TMP_CACERTS_DIR" "$APEX_CACERTS_DIR"
+    done
 
-    umount /data/local/tmp/tmp-ca-copy
-    rmdir /data/local/tmp/tmp-ca-copy
+    umount "$TMP_CACERTS_DIR"
+    rmdir "$TMP_CACERTS_DIR"
 fi
