@@ -1,6 +1,6 @@
 # Trust All Users Certs
 
-Ths module makes all installed certificates of all users trusted.
+Ths module makes all installed certificates of all users trusted on Android.
 
 Tested on Android 14.
 
